@@ -2,16 +2,6 @@ import torch
 import torch.nn as nn
 from datasets import load_dataset
 
-def find_layers(module, layers=[nn.Conv2d, nn.Linear], name=''):
-    if type(module) in layers:
-        return {name: module}
-    res = {}
-    for name1, child in module.named_children():
-        res.update(find_layers(
-            child, layers=layers, name=name + '.' + name1 if name != '' else name1
-        ))
-    return res
-
 def get_llama(model):
     import torch
     def skip(*args, **kwargs):
@@ -76,19 +66,6 @@ def llama_eval(model, testenc, dev):
         if i % 10 == 0:
             print(i)
         layer = layers[i].to(dev)
-        
-        if args.nearest:
-            subset = find_layers(layer)
-            for name in subset:
-                quantizer = Quantizer()
-                quantizer.configure(
-                    args.wbits, perchannel=True, sym=False, mse=False
-                )
-                W = subset[name].weight.data
-                quantizer.find_params(W, weight=True)
-                subset[name].weight.data = quantize(
-                    W, quantizer.scale, quantizer.zero, quantizer.maxq
-                ).to(next(iter(layer.parameters())).dtype)
 
         for j in range(nsamples):
             outs[j] = layer(inps[j].unsqueeze(0), attention_mask=attention_mask, position_ids=position_ids)[0]
