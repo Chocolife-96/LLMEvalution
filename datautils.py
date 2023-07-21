@@ -20,23 +20,17 @@ class Evaluator_lambada:
             return example
 
         self.dataset = self.dataset.map(tokenize_function, batched=True)
-        # print(self.dataset[0])
         self.dataset.set_format(type='torch', columns=['input_ids','attention_mask'])
 
     @torch.no_grad()
     def evaluate(self, model):
         model.eval()
-        # The task is to predict the last word of the input.
         total, hit = 0, 0
-        # print(self.dataset)
         for i, batch in enumerate(self.dataset):
             input_ids = batch['input_ids'].to(self.device).unsqueeze(0)
             attention_mask = batch['attention_mask'].to(self.device).unsqueeze(0)
-            # label = input_ids[:, -1]
             label = input_ids[:,int(torch.sum(batch['attention_mask'])-1)]
-            # outputs = model(input_ids,attention_mask=attention_mask)
             outputs = model(input_ids)
-            # print(model)
             last_token_logits = outputs.logits[:, int(torch.sum(batch['attention_mask'])-2), :]
             pred = last_token_logits.argmax(dim=-1)
             total += label.size(0)
@@ -92,19 +86,6 @@ class Evaluator_piqa:
     def _loglikelihood_tokens(self, context_enc, continuation_enc, foward_func=None, sample=False):
 
         padding_length = self.padding_length
-
-        # because vectorizing is annoying, we first convert each (context, continuation) pair to padded
-        # tensors, then we pack them together into a batch, call the model, and then pick it all apart
-        # again because vectorizing is annoying
-
-        # how this all works:
-        #          CTX      CONT
-        # inp    0 1 2 3|4 5 6 7 8 9   <- last token is deleted by inp[:, :-1]
-        # gpt2    \               \
-        # logits   1 2 3|4 5 6 7 8 9   <- the ctx half gets tossed out by the
-        # cont_toks      4 5 6 7 8 9      [:, -len(continuation_enc):, :self.vocab_size] slice
-
-        # when too long to fit in context, truncate from the left
         inp = torch.tensor(
             (context_enc + continuation_enc)[:][:-1],
             dtype=torch.long,
@@ -214,16 +195,11 @@ class Evaluator_hellaswag:
         # self.dataset.set_format(type='torch', columns=['input_ids','attention_mask','context_enc','continuation_enc'])
 
         def set_padding(examples):
-            # print(examples)
             context_enc = max(len(elem['input_ids']) for elem in examples['context_enc'])
-            # print([max(map(len, ele['input_ids'])) for ele in examples['continuation_enc']])
             continuation_enc = max([max(map(len, ele['input_ids'])) for ele in examples['continuation_enc'] ])
             self.padding_length = context_enc+continuation_enc+20
-            # print(context_enc,continuation_enc)
             return None
         self.dataset.map(set_padding, batched=True)
-
-        # print(self.padding_length, self.dataset[0])
 
     def _process_doc(self, doc):
         ctx = doc["ctx_a"] + " " + doc["ctx_b"].capitalize()
@@ -252,32 +228,11 @@ class Evaluator_hellaswag:
     def _loglikelihood_tokens(self, context_enc, continuation_enc, foward_func=None, sample=False):
 
         padding_length = self.padding_length
-
-        # because vectorizing is annoying, we first convert each (context, continuation) pair to padded
-        # tensors, then we pack them together into a batch, call the model, and then pick it all apart
-        # again because vectorizing is annoying
-
-        # sanity check
-        # assert len(context_enc) > 0
-        # assert len(continuation_enc) > 0
-
-        # print("enc shape ",len(context_enc),len(continuation_enc))
-        # print(context_enc,continuation_enc)
-        # how this all works:
-        #          CTX      CONT
-        # inp    0 1 2 3|4 5 6 7 8 9   <- last token is deleted by inp[:, :-1]
-        # gpt2    \               \
-        # logits   1 2 3|4 5 6 7 8 9   <- the ctx half gets tossed out by the
-        # cont_toks      4 5 6 7 8 9      [:, -len(continuation_enc):, :self.vocab_size] slice
-
-        # when too long to fit in context, truncate from the left
         inp = torch.tensor(
             (context_enc + continuation_enc)[:][:-1],
             dtype=torch.long,
         ).to(self.device)
         (inplen,) = inp.shape
-
-        # print("inp.shape",inp.shape)
 
         # since in _collate we make sure length is descending, the longest is always the first one.
         padding_length = (
@@ -309,17 +264,13 @@ class Evaluator_hellaswag:
             logits = F.log_softmax(
                 output, dim=-1
             ).cpu()  # [batch, padding_length, vocab]
-        # print("logits",output.logits.shape)
 
         # Slice to original seq length
         contlen = len(cont_toks)
-        # print(inplen,contlen)
-        # print(logits.shape,logits[:,inplen - contlen : inplen].shape)
         logits = logits[:,inplen - contlen : inplen]  # [1, seq, vocab]
 
         # Check if per-token argmax is exactly equal to continuation
         greedy_tokens = logits.argmax(dim=-1)
-        # print("greedy_tokens.shape",greedy_tokens.shape)
         cont_toks = torch.tensor(cont_toks, dtype=torch.long).unsqueeze(
             0
         )  # [1, seq]
@@ -330,11 +281,9 @@ class Evaluator_hellaswag:
         logits = torch.gather(logits, 2, cont_toks.unsqueeze(-1)).squeeze(
             -1
         )  # [1, seq]
-        # print("logits.shape",logits.shape)
 
         # Answer: (log prob, is-exact-match)
         answer = (float(logits.sum()), bool(max_equal))
-        # print("answer",answer)
 
         return answer
     
@@ -360,9 +309,7 @@ class Evaluator_hellaswag:
             for continuation_enc in batch['continuation_enc']['input_ids']:
                 output = self._loglikelihood_tokens(context_enc,continuation_enc)[0]
                 outputs.append(output)
-                # print(torch.sum(last_token_logits),last_token_logits)
             pred = np.argmax(outputs)
-            # print(pred, label)
             total += 1
             hit += pred == label
             if i % 200 == 0:

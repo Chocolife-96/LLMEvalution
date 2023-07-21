@@ -2,6 +2,9 @@ import torch
 import torch.nn as nn
 from datasets import load_dataset
 
+DEV = torch.device('cuda:0')
+
+
 def get_llama(model):
     import torch
     def skip(*args, **kwargs):
@@ -132,7 +135,7 @@ if __name__ == '__main__':
     tokenizer = LlamaTokenizer.from_pretrained(args.model, use_fast=False)
     tokenizer.pad_token = "[PAD]"
     # ============lambada==================
-    dataset = load_dataset('lambada', cache_dir='/gptq/datasets', split='validation')
+    dataset = load_dataset('lambada', split='validation')
     evaluator_lambada = Evaluator_lambada(dataset, tokenizer, 'cuda')
     acc_lambada = evaluator_lambada.evaluate(model.cuda())
     evaluator_lambada = None
