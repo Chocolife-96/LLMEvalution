@@ -1,20 +1,36 @@
 import torch
 import torch.nn as nn
 from datasets import load_dataset
+from transformers import (
+    AutoConfig,
+    AutoTokenizer,
+    AutoModelForCausalLM,
+    BitsAndBytesConfig
+)
 
-DEV = torch.device('cuda:0')
+from tqdm import tqdm
 
-
-def get_llama(model):
+def get_llama(args, model):
     import torch
     def skip(*args, **kwargs):
         pass
     torch.nn.init.kaiming_uniform_ = skip
     torch.nn.init.uniform_ = skip
     torch.nn.init.normal_ = skip
-    from transformers import LlamaForCausalLM
-    model = LlamaForCausalLM.from_pretrained(model, cache_dir='/gptq/hub', torch_dtype='auto')
+    # from transformers import LlamaForCausalLM
+    model = AutoModelForCausalLM.from_pretrained(model, 
+                                             torch_dtype='auto', 
+                                             load_in_4bit=args.bit_4,
+                                             quantization_config=BitsAndBytesConfig(
+                                             bnb_4bit_quant_type=args.quant_type,
+                                             load_in_4bit=args.bit_4,
+                                             ),
+                                             use_safetensors=False
+                                            )
+    # follows fast chat: https://github.com/lm-sys/FastChat/blob/main/fastchat/train/train.py#L257
+    
     model.seqlen = 2048
+    
     return model
 
 
@@ -65,9 +81,9 @@ def llama_eval(model, testenc, dev):
     attention_mask = cache['attention_mask']
     position_ids = cache['position_ids']
 
-    for i in range(len(layers)):
-        if i % 10 == 0:
-            print(i)
+    for i in tqdm(range(len(layers))):
+        # if i % 10 == 0:
+        #     print(i)
         layer = layers[i].to(dev)
 
         for j in range(nsamples):
@@ -83,7 +99,7 @@ def llama_eval(model, testenc, dev):
 
     testenc = testenc.to(dev)
     nlls = []
-    for i in range(nsamples):
+    for i in tqdm(range(nsamples)):
         hidden_states = inps[i].unsqueeze(0)
         if model.model.norm is not None:
             hidden_states = model.model.norm(hidden_states)
@@ -109,13 +125,22 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     parser.add_argument(
-        'model', type=str,
+        '--model', type=str,
         help='LlaMa model to load; pass location of hugginface converted checkpoint.'
     )
-
+    parser.add_argument(
+        "--new_eval", action='store_true', help='Use new evaluation'
+    )
+    parser.add_argument('--seed', type=int, default=0, help='Seed for sampling the calibration data.')
+    parser.add_argument('--bit_4', action='store_true', help='Quant to 4 bit')
+    parser.add_argument('--quant_type', type=str, default='nf4', help='quantization type')
+    parser.add_argument('--ckpt', type=str, default=None, help='checkpoint')
+    parser.add_argument('--device', type=str, default="cuda:0", help='cuda device')
     args = parser.parse_args()
 
-    model = get_llama(args.model)
+    DEV = torch.device(args.device)
+
+    model = get_llama(args, args.model)
     model.eval()
 
     
@@ -135,13 +160,13 @@ if __name__ == '__main__':
     tokenizer = LlamaTokenizer.from_pretrained(args.model, use_fast=False)
     tokenizer.pad_token = "[PAD]"
     # ============lambada==================
-    dataset = load_dataset('lambada', split='validation')
-    evaluator_lambada = Evaluator_lambada(dataset, tokenizer, 'cuda')
-    acc_lambada = evaluator_lambada.evaluate(model.cuda())
-    evaluator_lambada = None
-    dataset = None
-    print("lambada: ", acc_lambada)
-    torch.cuda.empty_cache()
+    # dataset = load_dataset('lambada', split='validation')
+    # evaluator_lambada = Evaluator_lambada(dataset, tokenizer, 'cuda')
+    # acc_lambada = evaluator_lambada.evaluate(model.cuda())
+    # evaluator_lambada = None
+    # dataset = None
+    # print("lambada: ", acc_lambada)
+    # torch.cuda.empty_cache()
     # # =============piqa=====================
     dataset = load_dataset('piqa', split='validation')
     evaluator_piqa = Evaluator_piqa(dataset, tokenizer, 'cuda', model)
@@ -158,3 +183,5 @@ if __name__ == '__main__':
     dataset = None
     print("hellaswag: ", acc_hellaswag)
     torch.cuda.empty_cache()
+    
+    

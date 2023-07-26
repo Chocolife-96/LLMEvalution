@@ -1,6 +1,6 @@
 import numpy as np
 import torch
-
+from tqdm import tqdm
 # from datasets import load_dataset
 
 import torch.nn.functional as F
@@ -159,7 +159,7 @@ class Evaluator_piqa:
         model.eval()
         # The task is to predict the last word of the input.
         total, hit = 0, 0
-        for i, batch in enumerate(self.dataset):
+        for i, batch in tqdm(enumerate(self.dataset)):
             context_enc = batch['context_enc']['input_ids']
             continuation_enc1 = batch['continuation_enc1']['input_ids']
             continuation_enc2 = batch['continuation_enc2']['input_ids']
@@ -302,7 +302,7 @@ class Evaluator_hellaswag:
         model.eval()
         # The task is to predict the last word of the input.
         total, hit = 0, 0
-        for i, batch in enumerate(self.dataset):
+        for i, batch in tqdm(enumerate(self.dataset)):
             context_enc = batch['context_enc']['input_ids']
             label = batch['gold']
             outputs = []
@@ -344,7 +344,7 @@ def get_wikitext2(nsamples, seed, seqlen, model):
     import random
     random.seed(seed)
     trainloader = []
-    for _ in range(nsamples):
+    for _ in tqdm(range(nsamples)):
         i = random.randint(0, trainenc.input_ids.shape[1] - seqlen - 1)
         j = i + seqlen
         inp = trainenc.input_ids[:, i:j]
@@ -370,7 +370,7 @@ def get_ptb(nsamples, seed, seqlen, model):
     import random
     random.seed(seed)
     trainloader = []
-    for _ in range(nsamples):
+    for _ in tqdm(range(nsamples)):
         i = random.randint(0, trainenc.input_ids.shape[1] - seqlen - 1)
         j = i + seqlen
         inp = trainenc.input_ids[:, i:j]
@@ -382,10 +382,10 @@ def get_ptb(nsamples, seed, seqlen, model):
 def get_c4(nsamples, seed, seqlen, model):
     from datasets import load_dataset
     traindata = load_dataset(
-        'allenai/c4', 'allenai--c4', data_files={'train': 'en/c4-train.00000-of-01024.json.gz'}, split='train'
+        '/root/model/datasets/c4', 'allenai--c4', data_files={'train': 'en/c4-train.00000-of-01024.json.gz'}, split='train'
     )
     valdata = load_dataset(
-        'allenai/c4', 'allenai--c4', data_files={'validation': 'en/c4-validation.00000-of-00008.json.gz'}, split='validation'
+        '/root/model/datasets/c4', 'allenai--c4', data_files={'validation': 'en/c4-validation.00000-of-00008.json.gz'}, split='validation'
     )
 
     # from transformers import AutoTokenizer
@@ -444,7 +444,7 @@ def get_ptb_new(nsamples, seed, seqlen, model):
     import random
     random.seed(seed)
     trainloader = []
-    for _ in range(nsamples):
+    for _ in tqdm(range(nsamples)):
         i = random.randint(0, trainenc.input_ids.shape[1] - seqlen - 1)
         j = i + seqlen
         inp = trainenc.input_ids[:, i:j]
@@ -456,10 +456,10 @@ def get_ptb_new(nsamples, seed, seqlen, model):
 def get_c4_new(nsamples, seed, seqlen, model):
     from datasets import load_dataset
     traindata = load_dataset(
-        'allenai/c4', 'allenai--c4', data_files={'train': 'en/c4-train.00000-of-01024.json.gz'}, split='train'
+        '/root/model/datasets/c4', 'allenai--c4', data_files={'train': 'en/c4-train.00000-of-01024.json.gz'}, split='train'
     )
     valdata = load_dataset(
-        'allenai/c4', 'allenai--c4', data_files={'validation': 'en/c4-validation.00000-of-00008.json.gz'}, split='validation'
+        '/root/model/datasets/c4', 'allenai--c4', data_files={'validation': 'en/c4-validation.00000-of-00008.json.gz'}, split='validation'
     )
 
     from transformers import AutoTokenizer
@@ -468,7 +468,7 @@ def get_c4_new(nsamples, seed, seqlen, model):
     import random
     random.seed(seed)
     trainloader = []
-    for _ in range(nsamples):
+    for _ in tqdm(range(nsamples)):
         while True:
             i = random.randint(0, len(traindata) - 1)
             trainenc = tokenizer(traindata[i]['text'], return_tensors='pt')
