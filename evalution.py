@@ -29,6 +29,8 @@ def get_llama(args, model):
                                             )
     # follows fast chat: https://github.com/lm-sys/FastChat/blob/main/fastchat/train/train.py#L257
     
+
+
     model.seqlen = 2048
     
     return model
@@ -147,7 +149,8 @@ if __name__ == '__main__':
     datasets = ['wikitext2', 'ptb', 'c4'] 
     # datasets = ['wikitext2']
     if args.new_eval:
-      datasets = ['wikitext2', 'ptb-new', 'c4-new']
+        # datasets = ['wikitext2', 'ptb-new', 'c4-new']
+        datasets = ['wikitext2', 'c4-new']
     for dataset in datasets:
         dataloader, testloader = get_loaders(
             dataset, seed=args.seed, model=args.model, seqlen=model.seqlen
@@ -160,7 +163,7 @@ if __name__ == '__main__':
     tokenizer = LlamaTokenizer.from_pretrained(args.model, use_fast=False)
     tokenizer.pad_token = "[PAD]"
     # ============lambada==================
-    # dataset = load_dataset('lambada', split='validation')
+    # dataset = load_dataset('/root/model/datasets/lambada/lambada', split='validation')
     # evaluator_lambada = Evaluator_lambada(dataset, tokenizer, 'cuda')
     # acc_lambada = evaluator_lambada.evaluate(model.cuda())
     # evaluator_lambada = None
@@ -168,7 +171,7 @@ if __name__ == '__main__':
     # print("lambada: ", acc_lambada)
     # torch.cuda.empty_cache()
     # # =============piqa=====================
-    dataset = load_dataset('piqa', split='validation')
+    dataset = load_dataset('/root/model/datasets/piqa/piqa_1', split='validation')
     evaluator_piqa = Evaluator_piqa(dataset, tokenizer, 'cuda', model)
     acc_piqa = evaluator_piqa.evaluate(model.cuda())
     evaluator_piqa = None
@@ -176,12 +179,12 @@ if __name__ == '__main__':
     print("piqa: ", acc_piqa)
     torch.cuda.empty_cache()
     # # =============hellaswag================
-    dataset = load_dataset('hellaswag', split='validation')
-    evaluator_hellaswag = Evaluator_hellaswag(dataset, tokenizer, 'cuda', model)
-    acc_hellaswag = evaluator_hellaswag.evaluate(model.cuda())
-    evaluator_hellaswag = None
-    dataset = None
-    print("hellaswag: ", acc_hellaswag)
-    torch.cuda.empty_cache()
+    # dataset = load_dataset('/root/model/datasets/hellaswag/hellaswag', split='validation')
+    # evaluator_hellaswag = Evaluator_hellaswag(dataset, tokenizer, 'cuda', model)
+    # acc_hellaswag = evaluator_hellaswag.evaluate(model.cuda())
+    # evaluator_hellaswag = None
+    # dataset = None
+    # print("hellaswag: ", acc_hellaswag)
+    # torch.cuda.empty_cache()
     
     

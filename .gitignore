@@ -1,0 +1,7 @@
+__pycache__/*
+
+lm_cache/*
+
+data/*
+
+evaluation_fsTask/lm_cache/*
