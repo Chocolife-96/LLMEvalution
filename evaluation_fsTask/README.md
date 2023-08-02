@@ -7,7 +7,7 @@ Recommend to run ```bash download.sh``` first
 https://github.com/EleutherAI/lm-evaluation-harness
 ### QA Task
 ```
-python main.py \
+python lmeval.py \
     --model hf-causal-experimental \
     --model_args pretrained=model_or_path,use_accelerate=True \
     --num_fewshot=0 \
@@ -16,12 +16,16 @@ python main.py \
 ```
 ### MMLU
 ```
-python main.py \
+python lmeval.py \
     --model hf-causal-experimental \
     --model_args pretrained=model_or_path,use_accelerate=True \
     --num_fewshot=5 \
     --batch_size=2 \
-    --tasks hendrycksTest-*
+    --tasks hendrycksTest-* \
+    --utput_path (ckpts/ckpt_nf4_chatQAT/checkpoint-100/mmlu_nf4.json)
+
+python mmlu_avg.py --json_path ckpts/ckpt_nf4_chatQAT/checkpoint-100/mmlu_nf4.json
 ```
+
 
 
